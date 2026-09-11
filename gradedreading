@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Reading Fluency Generator & Roster Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background-color: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .student-group {
+                display: block !important;
+            }
+            .student-page {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                page-break-after: always;
+                break-after: page;
+                min-height: 98vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }
+            .score-sheet-page {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                page-break-after: always;
+                break-after: page;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 10mm 12mm;
+            }
+        }
+
+        .passage-table {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+        }
+        .passage-table td {
+            border: 1px solid #64748b;
+            text-align: center;
+            vertical-align: middle;
+            padding: 5px 2px;
+            font-size: 0.92rem;
+            line-height: 1.25;
+        }
+        .word-cell {
+            font-weight: 600;
+            background-color: #f8fafc;
+            color: #0f172a;
+            word-wrap: break-word;
+        }
+        .check-cell {
+            height: 24px;
+            color: #64748b;
+            font-size: 0.85rem;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body class="p-3 md:p-6 min-h-screen">
+
+    <!-- Top Toolbar Header -->
+    <div class="no-print max-w-5xl mx-auto mb-6 bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+        <div class="bg-slate-900 text-white p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span id="headerClassBadge" class="bg-blue-600 text-xs font-black uppercase px-2.5 py-1 rounded tracking-wider text-white">
+                        Class 3 Johan
+                    </span>
+                    <h1 class="text-xl font-bold tracking-tight">Reading Fluency Generator</h1>
+                </div>
+                <p id="headerSubtitle" class="text-slate-400 text-xs mt-1">Universal Worksheet & Assessment Score Sheet Builder</p>
+            </div>
+            
+            <div class="flex flex-wrap gap-2">
+                <button onclick="toggleDrawer('classSettingsDrawer')" class="bg-indigo-700 hover:bg-indigo-600 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Manage Class & Roster
+                </button>
+                <button onclick="toggleDrawer('passageEditorDrawer')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    Edit Passages
+                </button>
+                <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Print Current View
+                </button>
+            </div>
+        </div>
+
+        <!-- Class & Roster Management Drawer -->
+        <div id="classSettingsDrawer" class="hidden p-5 bg-indigo-50 border-b border-indigo-200">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-sm font-bold text-indigo-950 uppercase tracking-wide flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+                    Custom Class & Student Roster Setup
+                </h3>
+                <span class="text-xs text-indigo-600 font-semibold bg-white px-2 py-0.5 rounded border border-indigo-200">Auto-saved to Browser</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Class Name / Title</label>
+                    <input type="text" id="inputClassName" class="w-full text-xs font-bold border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Class 4 Bestari or Grade 2 Alpha">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Subheader / Academic Year</label>
+                    <input type="text" id="inputClassSub" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Academic Year 2026 - English">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Quick Sample Presets</label>
+                    <div class="flex gap-2">
+                        <button onclick="loadSampleClass('3johan')" class="w-1/2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold py-2 px-2 rounded border border-slate-300 transition">
+                            Load "3 Johan"
+                        </button>
+                        <button onclick="loadSampleClass('demo')" class="w-1/2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold py-2 px-2 rounded border border-slate-300 transition">
+                            Load Demo Roster
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-slate-700 mb-1">
+                    Student Roster 
+                    <span id="rosterCountBadge" class="font-semibold text-indigo-700 float-right">(0 students)</span>
+                </label>
+                <p class="text-[11px] text-slate-500 mb-1.5">Paste your student names below (one name per line). They will automatically populate all worksheets and record sheets.</p>
+                <textarea id="inputRosterText" rows="6" oninput="updateRosterPreviewCount()" class="w-full text-xs font-mono border border-slate-300 rounded-lg p-3 text-slate-800 focus:ring-2 focus:ring-indigo-500" placeholder="Enter student names, one per line:&#10;AHMAD HARITH BIN ZULKIFLI&#10;CHIN WEI LIANG&#10;DARRYL TAN&#10;NUR FARAH BINTI HASIM"></textarea>
+            </div>
+
+            <div class="flex justify-between items-center">
+                <button onclick="resetRosterToEmpty()" class="text-xs text-red-600 hover:text-red-800 font-semibold underline">
+                    Clear Roster
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="toggleDrawer('classSettingsDrawer')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-4 py-2 rounded-lg transition">
+                        Cancel
+                    </button>
+                    <button onclick="applyClassSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-5 py-2 rounded-lg shadow transition">
+                        Save & Apply Class Roster
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Passage Editor Drawer -->
+        <div id="passageEditorDrawer" class="hidden p-5 bg-white border-b border-slate-200">
+            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                Custom Reading Passage Editor
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Passage 1 Editor -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Passage 1 Title</label>
+                    <input type="text" id="editP1Title" class="w-full text-xs font-bold border border-slate-300 rounded p-1.5 mb-2" placeholder="e.g. PASSAGE 1: THE FORGOTTEN PHONE">
+                    
+                    <label class="block text-xs font-bold text-slate-700 mb-1">
+                        Passage 1 Text 
+                        <span id="p1WordCount" class="font-normal text-slate-500 float-right">(0 words)</span>
+                    </label>
+                    <textarea id="editP1Text" rows="6" oninput="updateWordCounts()" class="w-full text-xs font-mono border border-slate-300 rounded p-2 text-slate-800" placeholder="Type or paste Passage 1 text here..."></textarea>
+                </div>
+
+                <!-- Passage 2 Editor -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Passage 2 Title</label>
+                    <input type="text" id="editP2Title" class="w-full text-xs font-bold border border-slate-300 rounded p-1.5 mb-2" placeholder="e.g. PASSAGE 2: THE MYSTERIOUS ACCOUNT">
+                    
+                    <label class="block text-xs font-bold text-slate-700 mb-1">
+                        Passage 2 Text 
+                        <span id="p2WordCount" class="font-normal text-slate-500 float-right">(0 words)</span>
+                    </label>
+                    <textarea id="editP2Text" rows="6" oninput="updateWordCounts()" class="w-full text-xs font-mono border border-slate-300 rounded p-2 text-slate-800" placeholder="Type or paste Passage 2 text here..."></textarea>
+                </div>
+            </div>
+
+            <div class="mt-4 flex justify-end gap-2">
+                <button onclick="toggleDrawer('passageEditorDrawer')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-4 py-2 rounded-lg transition">
+                    Close
+                </button>
+                <button onclick="applyCustomPassages()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2 rounded-lg shadow transition">
+                    Apply & Update Worksheets
+                </button>
+            </div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="p-4 bg-slate-50 border-b border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-medium text-slate-700">
+            <!-- Preset Selector -->
+            <div>
+                <label for="presetSelect" class="block font-semibold mb-1 text-slate-800">Reading Passage Set:</label>
+                <select id="presetSelect" onchange="loadPresetPassage()" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:ring-2 focus:ring-blue-500">
+                    <option value="set1">Set 1: Digital & Everyday Life</option>
+                    <option value="set2">Set 2: Nature & Animals</option>
+                    <option value="set3">Set 3: Adventure & Outdoor</option>
+                    <option value="set4">Set 4: School & Honesty</option>
+                    <option value="custom">-- Custom Edited Passage --</option>
+                </select>
+            </div>
+
+            <!-- View Mode Selector -->
+            <div>
+                <label for="viewMode" class="block font-semibold mb-1 text-slate-800">Display Layout:</label>
+                <select id="viewMode" onchange="switchViewMode()" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:ring-2 focus:ring-blue-500">
+                    <option value="worksheets">2-Page Student Worksheets (Individual Print)</option>
+                    <option value="scoresheet">Class Score Record Sheet (1 Page Summary)</option>
+                </select>
+            </div>
+
+            <!-- Student Filter (for Worksheets mode) -->
+            <div id="studentFilterBox">
+                <label for="studentSelect" class="block font-semibold mb-1 text-slate-800">Filter Student:</label>
+                <select id="studentSelect" onchange="filterStudent()" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 focus:ring-2 focus:ring-blue-500">
+                    <option value="ALL">All Students (Print Entire Class)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Render Target -->
+    <div id="mainContainer" class="max-w-4xl mx-auto"></div>
+
+    <script>
+        const sampleClasses = {
+            "3johan": {
+                name: "Class 3 Johan",
+                sub: "Reading Fluency Program • Academic Year 2026",
+                roster: [
+                    "FAYYADH DARWISH BIN KAMARULZAMAN",
+                    "FONG ZI LE",
+                    "IRDINA QAISARA BINTI MOHD RAIS",
+                    "MOHAMMAD YUZ FAZLY BIN MOHD YUZUAN",
+                    "MUHAIMINA SYAFIQAH BINTI MOHD SAFAWE",
+                    "MUHAMMAD ADIB WAJDI BIN MOHD AZHAR",
+                    "MUHAMMAD ARYAN HAZIQ BIN NOORHAIRUL",
+                    "MUHAMMAD HAFIY BIN MUHAMAD MAZUAN",
+                    "NOOR HAIDARDANISH BIN NOOR HASRUL ANUAR",
+                    "NUR AMIRUL YUSSUFF BIN ZAKARIA",
+                    "NUR AMMAR RAYYAN BIN MOHAMAD",
+                    "NUR DHIA ARISSA BINTI ZULAZLI",
+                    "NUR QISTINA UZMA BINTI MOHAMMAD HAFIZ",
+                    "NUR SAIDATUL AISYAH BINTI MOHD FADZLI",
+                    "NURUL NATASYA BINTI KAMARUL ZAMAN",
+                    "PUTERA MUHAMAD RAYYAN IRFAN BIN MUHAMAD SHAH",
+                    "QASEH NUR IMAN BINTI SHAFIEE",
+                    "RAFI DZAKWAN BIN MOHAMMAD SHARIFFUDIN",
+                    "SITI AISYA DAMIA BINTI MOHD HAFIZAN",
+                    "WAN NABEEL SHAUQEE BIN WAN AHMAD RASHDAN",
+                    "WAN NUR HAWA RAUDHAH BINTI WAN TAJUR ASIKIN",
+                    "ZACHARIYYA BIN FAIZAL"
+                ]
+            },
+            "demo": {
+                name: "Class 4 Bestari",
+                sub: "English Reading Assessment • Term 1",
+                roster: [
+                    "ADAM DANISH BIN AZMAN",
+                    "ALICE SMITH",
+                    "CHIN WEI JIE",
+                    "DIVYA A/P RAMAN",
+                    "MUHAMMAD ADAM BIN ROSLI",
+                    "NUR SYAHIRA BINTI ZAKARIA",
+                    "TAN KAI XIN",
+                    "ZULKARNAIN BIN MUSA"
+                ]
+            }
+        };
+
+        const passagePresets = {
+            set1: {
+                title1: "PASSAGE 1: THE FORGOTTEN PHONE",
+                text1: "On Monday morning, Adam realised that he had left his smartphone at home. At first, he panicked because he used his phone for messages, reminders, and school updates. Throughout the day, he kept reaching into his pocket before remembering that the device was missing. Surprisingly, Adam began paying more attention during lessons and spent more time talking to his friends during recess. He even finished his homework earlier than usual. When he finally returned home and found his phone on the table, he smiled. For the first time in months, he had enjoyed a day without notifications.",
+                title2: "PASSAGE 2: THE MYSTERIOUS ACCOUNT",
+                text2: "One evening, Sarah noticed a new social media account following all the students in her class. The account had no profile picture and posted strange messages. Soon, many students became curious and started discussing the mystery online. Some believed it was a new student, while others thought it was a prank. Sarah decided to investigate. After comparing writing styles and posting times, she discovered that the account belonged to her best friend. He had created it as part of a school project about online identity. The mystery was solved, and everyone laughed about their theories."
+            },
+            set2: {
+                title1: "PASSAGE 1: THE LOST KITTEN",
+                text1: "On a sunny Tuesday afternoon, Mei Ling heard a faint meowing sound near the school garden fence. She walked over quietly and saw a tiny gray kitten trapped under a fallen wooden branch. The poor cat looked scared and cold. Mei Ling gently lifted the branch and called her teacher, Encik Farid. Together, they gave the kitten some water and wrapped it in a warm towel. By the end of the day, Mei Ling's parents decided to adopt the sweet kitten and named him Miko.",
+                title2: "PASSAGE 2: THE CLEAN RIVER CAMPAIGN",
+                text2: "Last Saturday, students gathered at the local park near the riverbank. They wore bright yellow gloves and brought large green recycling bags. Their teacher explained that plastic rubbish hurts fish and pollutes clean water. Working in pairs, the children picked up water bottles, food wrappers, and cardboard boxes. After two hours of hard work, they collected eight big bags of waste. Everyone felt happy and proud seeing the riverbank sparkling clean and safe again for nature."
+            },
+            set3: {
+                title1: "PASSAGE 1: THE SECRET TREEHOUSE",
+                text1: "Deep in the woods behind Danial's house stood an old oak tree with thick, sturdy branches. One Saturday morning, Danial and his cousin Amir decided to build a secret treehouse up high. They carried smooth wooden boards, small nails, and a light hammer into the forest. With help from Danial's uncle, they safely fixed a wooden platform between three strong branches. They added a rope ladder and a colorful flag on top. It became their favorite spot to read storybooks together.",
+                title2: "PASSAGE 2: THE UNEXPECTED RAINSTORM",
+                text2: "The sky turned dark gray as pupils set up their colorful tents at the school campsite. Cool wind blew through the tall trees, showing that a storm was near. Suddenly, heavy raindrops began to fall on the green grass. Mr. Harris quickly guided all the pupils into the warm wooden hall. Inside, the students sat in a circle, sang cheerful songs, and shared funny stories. Although the outdoor game was canceled, everyone enjoyed warm drinks and had a wonderful time together."
+            },
+            set4: {
+                title1: "PASSAGE 1: THE LOST WALLET",
+                text1: "While walking to the school canteen during recess, Hakim spotted a small brown wallet on the corridor floor. He picked it up and found an identity card belonging to his classmate, Rayyan. Instead of keeping the pocket money inside, Hakim immediately walked to the school office and handed the wallet to the principal. Ten minutes later, Rayyan was called to collect his wallet. He gave Hakim a huge smile and thanked him sincerely for his honesty and kindness.",
+                title2: "PASSAGE 2: THE SCIENCE FAIR EXPERIMENT",
+                text2: "Aisha and her partner Suzie wanted to build a mini volcano for the annual school science fair. They used recycled cardboard, red clay, baking soda, and red food coloring. On exhibition day, many parents gathered around their table to watch the demonstration. When Aisha poured vinegar into the top crater, bright pink foam bubbled up and overflowed down the sides! The audience clapped loudly, and the judges awarded them a special badge for outstanding teamwork."
+            }
+        };
+
+        // Active Application State
+        let currentClassName = "Class 3 Johan";
+        let currentClassSub = "Reading Fluency Assessment • Academic Year 2026";
+        let activeStudents = [ ...sampleClasses["3johan"].roster ];
+        let activePassages = { ...passagePresets.set1 };
+
+        function loadSettingsFromStorage() {
+            try {
+                const savedClass = localStorage.getItem('rf_className');
+                const savedSub = localStorage.getItem('rf_classSub');
+                const savedRoster = localStorage.getItem('rf_studentRoster');
+
+                if (savedClass) currentClassName = savedClass;
+                if (savedSub) currentClassSub = savedSub;
+                if (savedRoster) {
+                    const parsed = JSON.parse(savedRoster);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        activeStudents = parsed;
+                    }
+                }
+            } catch (e) {
+                console.log('Using default state settings');
+            }
+        }
+
+        function saveSettingsToStorage() {
+            try {
+                localStorage.setItem('rf_className', currentClassName);
+                localStorage.setItem('rf_classSub', currentClassSub);
+                localStorage.setItem('rf_studentRoster', JSON.stringify(activeStudents));
+            } catch (e) {
+                console.warn('Could not save to localStorage');
+            }
+        }
+
+        function updateHeaderBadges() {
+            document.getElementById('headerClassBadge').textContent = currentClassName;
+            document.getElementById('headerSubtitle').textContent = currentClassSub;
+        }
+
+        function syncClassDrawerInputs() {
+            document.getElementById('inputClassName').value = currentClassName;
+            document.getElementById('inputClassSub').value = currentClassSub;
+            document.getElementById('inputRosterText').value = activeStudents.join('\n');
+            updateRosterPreviewCount();
+        }
+
+        function updateRosterPreviewCount() {
+            const raw = document.getElementById('inputRosterText').value;
+            const names = parseRosterText(raw);
+            document.getElementById('rosterCountBadge').textContent = `(${names.length} students)`;
+        }
+
+        function parseRosterText(text) {
+            if (!text) return [];
+            return text
+                .split('\n')
+                .map(n => n.trim())
+                .filter(n => n.length > 0);
+        }
+
+        function applyClassSettings() {
+            const nameInput = document.getElementById('inputClassName').value.trim();
+            const subInput = document.getElementById('inputClassSub').value.trim();
+            const rawRoster = document.getElementById('inputRosterText').value;
+
+            if (nameInput) currentClassName = nameInput;
+            currentClassSub = subInput || "Reading Fluency Assessment";
+
+            const parsedRoster = parseRosterText(rawRoster);
+            if (parsedRoster.length > 0) {
+                activeStudents = parsedRoster;
+            } else {
+                activeStudents = ["STUDENT NAME PLACEHOLDER"];
+            }
+
+            saveSettingsToStorage();
+            updateHeaderBadges();
+            populateStudentDropdown();
+            refreshCurrentView();
+            toggleDrawer('classSettingsDrawer', false);
+        }
+
+        function loadSampleClass(presetKey) {
+            if (sampleClasses[presetKey]) {
+                const preset = sampleClasses[presetKey];
+                document.getElementById('inputClassName').value = preset.name;
+                document.getElementById('inputClassSub').value = preset.sub;
+                document.getElementById('inputRosterText').value = preset.roster.join('\n');
+                updateRosterPreviewCount();
+            }
+        }
+
+        function resetRosterToEmpty() {
+            document.getElementById('inputRosterText').value = '';
+            updateRosterPreviewCount();
+        }
+
+        function parseTextToRows(text) {
+            if (!text) return [];
+            const words = text.trim().replace(/\s+/g, ' ').split(' ');
+            const rows = [];
+            for (let i = 0; i < words.length; i += 8) {
+                rows.push(words.slice(i, i + 8));
+            }
+            return rows;
+        }
+
+        function countWords(text) {
+            if (!text) return 0;
+            return text.trim().replace(/\s+/g, ' ').split(' ').filter(Boolean).length;
+        }
+
+        function renderPassageTable(rows) {
+            let html = '<table class="passage-table mb-4"><tbody>';
+            rows.forEach(row => {
+                // Word Row
+                html += '<tr>';
+                for (let i = 0; i < 8; i++) {
+                    const word = row[i] || '';
+                    html += `<td class="word-cell">${word}</td>`;
+                }
+                html += '</tr>';
+
+                // Checkbox Row
+                html += '<tr>';
+                for (let i = 0; i < 8; i++) {
+                    const word = row[i] || '';
+                    if (word) {
+                        html += `<td class="check-cell">☐</td>`;
+                    } else {
+                        html += `<td class="check-cell"></td>`;
+                    }
+                }
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function renderWorksheets() {
+            const container = document.getElementById('mainContainer');
+            container.innerHTML = '';
+
+            const p1Rows = parseTextToRows(activePassages.text1);
+            const p2Rows = parseTextToRows(activePassages.text2);
+            const p1Words = countWords(activePassages.text1);
+            const p2Words = countWords(activePassages.text2);
+
+            const selectVal = document.getElementById('studentSelect').value;
+
+            activeStudents.forEach((name, idx) => {
+                const studentGroup = document.createElement('div');
+                studentGroup.id = `sheet-${idx}`;
+                studentGroup.className = 'student-group space-y-8 print:space-y-0 mb-8';
+
+                if (selectVal !== 'ALL' && parseInt(selectVal) !== idx) {
+                    studentGroup.style.display = 'none';
+                }
+
+                // --- PAGE 1: PASSAGE 1 ---
+                const page1 = document.createElement('div');
+                page1.className = 'student-page bg-white p-6 md:p-8 rounded-xl shadow border border-slate-200';
+                page1.innerHTML = `
+                    <div>
+                        <!-- Page Header -->
+                        <div class="border-b-2 border-slate-900 pb-3 mb-5">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="font-extrabold text-xl text-slate-900 tracking-tight uppercase">${currentClassName}</span>
+                                <span class="text-xs text-slate-500 font-semibold uppercase">Reading Fluency • Page 1 of 2</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-4 pt-1">
+                                <div class="col-span-2 text-sm font-bold text-slate-800">
+                                    STUDENT NAME: <span class="border-b-2 border-slate-700 inline-block px-2 text-blue-900">${name}</span>
+                                </div>
+                                <div class="text-sm font-bold text-slate-800 text-right">
+                                    DATE: <span class="border-b border-slate-400 inline-block w-24"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Passage Title Bar -->
+                        <div class="flex justify-between items-center mb-3 bg-slate-100 p-2.5 rounded border-l-4 border-blue-600">
+                            <h2 class="text-xs font-bold text-slate-800 tracking-wider uppercase">
+                                ${activePassages.title1}
+                            </h2>
+                            <span class="text-[11px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">Total: ${p1Words} words</span>
+                        </div>
+
+                        <!-- Word Grid -->
+                        ${renderPassageTable(p1Rows)}
+                    </div>
+                `;
+
+                // --- PAGE 2: PASSAGE 2 ---
+                const page2 = document.createElement('div');
+                page2.className = 'student-page bg-white p-6 md:p-8 rounded-xl shadow border border-slate-200';
+                page2.innerHTML = `
+                    <div>
+                        <!-- Page Header -->
+                        <div class="border-b-2 border-slate-900 pb-3 mb-5">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="font-extrabold text-xl text-slate-900 tracking-tight uppercase">${currentClassName}</span>
+                                <span class="text-xs text-slate-500 font-semibold uppercase">Reading Fluency • Page 2 of 2</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-4 pt-1">
+                                <div class="col-span-2 text-sm font-bold text-slate-800">
+                                    STUDENT NAME: <span class="border-b-2 border-slate-700 inline-block px-2 text-blue-900">${name}</span>
+                                </div>
+                                <div class="text-sm font-bold text-slate-800 text-right">
+                                    DATE: <span class="border-b border-slate-400 inline-block w-24"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Passage Title Bar -->
+                        <div class="flex justify-between items-center mb-3 bg-slate-100 p-2.5 rounded border-l-4 border-blue-600">
+                            <h2 class="text-xs font-bold text-slate-800 tracking-wider uppercase">
+                                ${activePassages.title2}
+                            </h2>
+                            <span class="text-[11px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">Total: ${p2Words} words</span>
+                        </div>
+
+                        <!-- Word Grid -->
+                        ${renderPassageTable(p2Rows)}
+                    </div>
+                `;
+
+                studentGroup.appendChild(page1);
+                studentGroup.appendChild(page2);
+                container.appendChild(studentGroup);
+            });
+        }
+
+        function renderScoreSheet() {
+            const container = document.getElementById('mainContainer');
+            container.innerHTML = '';
+
+            const p1Title = activePassages.title1.replace(/^PASSAGE \d+:\s*/i, '');
+            const p2Title = activePassages.title2.replace(/^PASSAGE \d+:\s*/i, '');
+
+            let tableRowsHtml = '';
+            activeStudents.forEach((name, idx) => {
+                tableRowsHtml += `
+                    <tr class="border-b border-slate-200 text-xs">
+                        <td class="py-2 px-2 text-center font-bold text-slate-500">${idx + 1}</td>
+                        <td class="py-2 px-3 font-bold text-slate-900">${name}</td>
+                        <td class="py-2 px-2 text-center"></td>
+                        <td class="py-2 px-2 text-center"></td>
+                        <td class="py-2 px-2 text-center font-medium"></td>
+                        <td class="py-2 px-2 text-center font-medium"></td>
+                        <td class="py-2 px-2 text-center font-bold"></td>
+                        <td class="py-2 px-3"></td>
+                    </tr>
+                `;
+            });
+
+            const scorePage = document.createElement('div');
+            scorePage.className = 'score-sheet-page bg-white p-6 rounded-xl shadow border border-slate-200';
+            scorePage.innerHTML = `
+                <div class="border-b-2 border-slate-900 pb-3 mb-4 flex justify-between items-end">
+                    <div>
+                        <h1 class="text-xl font-extrabold text-slate-900 uppercase">${currentClassName} - Reading Fluency Record</h1>
+                        <p class="text-xs text-slate-600 font-semibold">Passage 1: ${p1Title} | Passage 2: ${p2Title}</p>
+                    </div>
+                    <div class="text-right text-xs text-slate-600 font-bold">
+                        ${currentClassSub}
+                    </div>
+                </div>
+
+                <table class="w-full text-left border-collapse border border-slate-300">
+                    <thead>
+                        <tr class="bg-slate-100 text-[11px] font-extrabold text-slate-800 border-b border-slate-300">
+                            <th class="py-2 px-1 text-center w-8 border-r border-slate-200">#</th>
+                            <th class="py-2 px-3 border-r border-slate-200">Student Name</th>
+                            <th class="py-2 px-1 text-center w-16 border-r border-slate-200">P1 Time (s)</th>
+                            <th class="py-2 px-1 text-center w-16 border-r border-slate-200">P2 Time (s)</th>
+                            <th class="py-2 px-1 text-center w-20 border-r border-slate-200">Avg WCPM</th>
+                            <th class="py-2 px-1 text-center w-16 border-r border-slate-200">Accuracy %</th>
+                            <th class="py-2 px-1 text-center w-24 border-r border-slate-200">Fluency Band</th>
+                            <th class="py-2 px-2">Teacher Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRowsHtml}
+                    </tbody>
+                </table>
+
+                <div class="mt-4 pt-3 border-t border-slate-200 grid grid-cols-3 text-xs text-slate-600">
+                    <div><strong>Teacher Signature:</strong> _______________________</div>
+                    <div><strong>Date:</strong> _______________________</div>
+                    <div class="text-right font-medium">${currentClassName} Fluency Record</div>
+                </div>
+            `;
+
+            container.appendChild(scorePage);
+        }
+
+        function populateStudentDropdown() {
+            const select = document.getElementById('studentSelect');
+            select.innerHTML = `<option value="ALL">All ${activeStudents.length} Students (Print Entire Class)</option>`;
+            activeStudents.forEach((name, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = `${idx + 1}. ${name}`;
+                select.appendChild(opt);
+            });
+        }
+
+        function loadPresetPassage() {
+            const val = document.getElementById('presetSelect').value;
+            if (val !== 'custom') {
+                activePassages = { ...passagePresets[val] };
+                document.getElementById('editP1Title').value = activePassages.title1;
+                document.getElementById('editP1Text').value = activePassages.text1;
+                document.getElementById('editP2Title').value = activePassages.title2;
+                document.getElementById('editP2Text').value = activePassages.text2;
+                updateWordCounts();
+                refreshCurrentView();
+            } else {
+                toggleDrawer('passageEditorDrawer', true);
+            }
+        }
+
+        function toggleDrawer(drawerId, forceOpen = false) {
+            const drawer = document.getElementById(drawerId);
+            const isHidden = drawer.classList.contains('hidden');
+
+            // Close all drawers first
+            document.getElementById('classSettingsDrawer').classList.add('hidden');
+            document.getElementById('passageEditorDrawer').classList.add('hidden');
+
+            if (forceOpen || isHidden) {
+                drawer.classList.remove('hidden');
+            }
+        }
+
+        function updateWordCounts() {
+            const t1 = document.getElementById('editP1Text').value;
+            const t2 = document.getElementById('editP2Text').value;
+            document.getElementById('p1WordCount').textContent = `(${countWords(t1)} words)`;
+            document.getElementById('p2WordCount').textContent = `(${countWords(t2)} words)`;
+        }
+
+        function applyCustomPassages() {
+            activePassages.title1 = document.getElementById('editP1Title').value || 'PASSAGE 1';
+            activePassages.text1 = document.getElementById('editP1Text').value;
+            activePassages.title2 = document.getElementById('editP2Title').value || 'PASSAGE 2';
+            activePassages.text2 = document.getElementById('editP2Text').value;
+            
+            document.getElementById('presetSelect').value = 'custom';
+            refreshCurrentView();
+            toggleDrawer('passageEditorDrawer', false);
+        }
+
+        function switchViewMode() {
+            const viewMode = document.getElementById('viewMode').value;
+            const studentFilterBox = document.getElementById('studentFilterBox');
+            if (viewMode === 'scoresheet') {
+                studentFilterBox.classList.add('opacity-40', 'pointer-events-none');
+            } else {
+                studentFilterBox.classList.remove('opacity-40', 'pointer-events-none');
+            }
+            refreshCurrentView();
+        }
+
+        function filterStudent() {
+            const viewMode = document.getElementById('viewMode').value;
+            if (viewMode === 'worksheets') {
+                renderWorksheets();
+            }
+        }
+
+        function refreshCurrentView() {
+            const viewMode = document.getElementById('viewMode').value;
+            if (viewMode === 'scoresheet') {
+                renderScoreSheet();
+            } else {
+                renderWorksheets();
+            }
+        }
+
+        // Initialize Application
+        window.onload = function() {
+            loadSettingsFromStorage();
+            updateHeaderBadges();
+            syncClassDrawerInputs();
+
+            // Set initial passage values into editor
+            document.getElementById('editP1Title').value = activePassages.title1;
+            document.getElementById('editP1Text').value = activePassages.text1;
+            document.getElementById('editP2Title').value = activePassages.title2;
+            document.getElementById('editP2Text').value = activePassages.text2;
+            updateWordCounts();
+
+            populateStudentDropdown();
+            renderWorksheets();
+        };
+    </script>
+</body>
+</html>
